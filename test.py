@@ -153,28 +153,61 @@
 # for i in s:
 #     print(i)
 
-# 测试3
-from functools import wraps
-def cache(func):
-    store = {}
-    @wraps(func)
-    def _(n):
-        # print(n,'a')
-        if n in store:
-            return store[n]
-        else:
-            res = func(n)
-            # print(res,'c')
-            store[n]=res
-            return res
-    return _
-@cache
-def f(n):
-    # print(n,'b')
-    if n <1:
-        return 1
-    # print(f(n -1)+f(n - 2))
-    return f(n-1)
-    # return f(n -1)+f(n - 2)
+# # 测试3
+# from functools import wraps
+# def cache(func):
+#     store = {}
+#     @wraps(func)
+#     def _(n):
+#         # print(n,'a')
+#         if n in store:
+#             return store[n]
+#         else:
+#             res = func(n)
+#             # print(res,'c')
+#             store[n]=res
+#             return res
+#     return _
+# @cache
+# def f(n):
+#     # print(n,'b')
+#     if n <1:
+#         return 1
+#     # print(f(n -1)+f(n - 2))
+#     return f(n-1)
+#     # return f(n -1)+f(n - 2)
+#
+# print(f(23))
 
-print(f(23))
+import selectors
+import socket
+
+sel = selectors.DefaultSelector()
+
+def accept(sock, mask):
+    conn, addr = sock.accept()  # Should be ready
+    print('accepted', conn, 'from', addr)
+    conn.setblocking(False)
+    sel.register(conn, selectors.EVENT_READ, read)
+
+def read(conn, mask):
+    data = conn.recv(1000)  # Should be ready
+    if data:
+        print('echoing', repr(data), 'to', conn)
+        conn.send(data)  # Hope it won't block
+    else:
+        print('closing', conn)
+        sel.unregister(conn)
+        conn.close()
+
+sock = socket.socket()
+sock.bind(('localhost', 122))
+sock.listen(100)
+sock.setblocking(False)
+sel.register(sock, selectors.EVENT_READ, accept)
+
+while True:
+    events = sel.select()
+    for key, mask in events:
+        callback = key.data
+        callback(key.fileobj, mask)
